@@ -1,2 +1,3 @@
 # opengl-renderer
-opengl fragment glsl goodness
+idk what im doing.
+rn its similar to shaderlab with its stuff but im wanting to do more with it in the future
