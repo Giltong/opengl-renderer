@@ -1,89 +1,56 @@
-#version 330 core
+#version 460 core
+#extension GL_ARB_gpu_shader_fp64 : enable
 
 uniform vec2 iResolution;
 uniform float iTime;
+uniform dvec2 offset;
+uniform double scale;
 
 out vec4 out_color;
-in vec4 gl_FragCoord;
 
-float smooth_max(float a, float b, float k)
+#define MAX_ITERATIONS 1000
+
+int get_iterations()
 {
-    return log(exp(k*a) + exp(k*b)) / k;
-}
+    vec2 uv = gl_FragCoord.xy / iResolution.xy - 0.5;
+    double real = (uv.x * 4.0f + offset.x / scale) * scale;
+    double imag = (uv.y * 4.0f + offset.y / scale) * scale;
 
-float smooth_min(float a, float b, float k)
-{
-    return -smooth_max(-a,-b,k);
-}
+    int iterations = 0;
+    double const_real = real;
+    double const_imag = imag;
 
-float distance_from_sphere(in vec3 p, in vec3 c, float r)
-{
-    return length(p - c) - r;
-}
+    real = 0;
+    imag = 0;
 
-float map_the_world(in vec3 p)
-{
-    float sphere_0 = distance_from_sphere(p, vec3(4*sin(iTime),0,0), 1.0);
-    float sphere_1 = distance_from_sphere(p, vec3(0,2,0), 0.5);
-    float sphere_3 = distance_from_sphere(p, vec3(1.5,2,0), 0.5);
-    return smooth_min(smooth_min(sphere_0, sphere_1, 2), sphere_3, 2);
-}
+    double real2 = 0;
+    double imag2 = 0;
 
-vec3 calculate_normal(in vec3 p)
-{
-    const vec3 small_step = vec3(0.001, 0.0, 0.0);
-
-    float gradient_x = map_the_world(p + small_step.xyy) - map_the_world(p - small_step.xyy);
-    float gradient_y = map_the_world(p + small_step.yxy) - map_the_world(p - small_step.yxy);
-    float gradient_z = map_the_world(p + small_step.yyx) - map_the_world(p - small_step.yyx);
-
-    vec3 normal = vec3(gradient_x, gradient_y, gradient_z);
-
-    return normalize(normal);
-}
-
-vec3 ray_march(in vec3 ro, in vec3 rd)
-{
-    float total_distance_traveled = 0.0;
-    const int NUMBER_OF_STEPS = 64;
-    const float MINIMUM_HIT_DISTANCE = 0.001;
-    const float MAXIMUM_TRACE_DISTANCE = 1000.0;
-
-    for (int i = 0; i < NUMBER_OF_STEPS; ++i)
+    while(real2 + imag2 <= 4 && iterations < MAX_ITERATIONS)
     {
-        vec3 current_position = ro + total_distance_traveled * rd;
-
-        float distance_to_closest = map_the_world(current_position);
-
-        if (distance_to_closest < MINIMUM_HIT_DISTANCE)
-        {
-            vec3 normal = calculate_normal(current_position);
-            vec3 light_position = vec3(2.0, -5.0, 3.0);
-            vec3 direction_to_light = normalize(current_position - light_position);
-
-            float diffuse_intensity = max(0.0, dot(normal, direction_to_light));
-
-            return vec3(normal * 0.5 + 0.5);
-        }
-
-        if (total_distance_traveled > MAXIMUM_TRACE_DISTANCE)
-        {
-            break;
-        }
-        total_distance_traveled += distance_to_closest;
+        imag = 2 * real * imag + const_imag;
+        real = real2 - imag2 + const_real;
+        real2 = real * real;
+        imag2 = imag * imag;
+        iterations++;
     }
-    return vec3(0.0);
+    return iterations;
+}
+
+vec4 return_color()
+{
+    int iter = get_iterations();
+    if (iter == MAX_ITERATIONS)
+    {
+        gl_FragDepth = 0.0f;
+        return vec4(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+
+    float iterations = float(iter) / MAX_ITERATIONS;
+    return(vec4(vec3(iterations), 1.0f));
 }
 
 void main()
 {
-    vec2 uv = gl_FragCoord.xy / iResolution.xy - 0.5;
-
-    vec3 camera_position = vec3(0.0, 0.0, -10);
-    vec3 ro = camera_position;
-    vec3 rd = vec3(uv, 1.0);
-
-    vec3 shaded_color = ray_march(ro, rd);
-
-    out_color = vec4(shaded_color, 1.0);
+    out_color = return_color();
 }

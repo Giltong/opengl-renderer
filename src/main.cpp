@@ -1,4 +1,5 @@
 #include <iostream>
+#include <chrono>
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 #include "shader_program.h"
@@ -10,20 +11,32 @@ static void glfwError(int id, const char* description)
 
 
 
-
+GLFWwindow* window;
 int WINDOW_WIDTH = 800;
 int WINDOW_HEIGHT = 800;
 
-static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+double panSpeed = 2.0;
+double scaleSpeed = 0.5;
+double scale = 1.0;
+double yOffset = 0.0;
+double xOffset = 0.0;
+
+float deltatime = 0.0f;
+
+
+void process_input();
+
+static void framebuffer_size_callback(GLFWwindow* _window, int width, int height)
 {
     WINDOW_WIDTH = width;
     WINDOW_HEIGHT = height;
 
     glViewport(0, 0, width, height);
-
 }
 
+
 int main() {
+    std::chrono::steady_clock::time_point lastUpdate;
 
     glfwSetErrorCallback(glfwError);
     glfwInit();
@@ -32,7 +45,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_SAMPLES, 4);
 
-    GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Ray Tracer", nullptr, nullptr);
+    window = glfwCreateWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Ray Tracer", nullptr, nullptr);
 
     if(window == nullptr)
     {
@@ -48,9 +61,11 @@ int main() {
         std::cerr << "Failed to initialize glad" << std::endl;
         return -1;
     }
+
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
     glViewport(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
-    glEnable(GL_MULTISAMPLE);
+    //glEnable(GL_MULTISAMPLE);
     shader_program shader;
     shader.add("../shaders/vert.glsl", shader_type::vertex);
     shader.add("../shaders/frag.glsl", shader_type::fragment);
@@ -84,14 +99,22 @@ int main() {
 
     while(!glfwWindowShouldClose(window))
     {
+        auto now = std::chrono::steady_clock::now();
+        deltatime = std::chrono::duration_cast<std::chrono::microseconds>(now-lastUpdate).count() / 1000000.0f;
+        lastUpdate = now;
         glfwPollEvents();
+        process_input();
 
         glClear(GL_COLOR_BUFFER_BIT);
         glBindVertexArray(vao);
 
         shader.use();
+
         shader.set_float2f("iResolution", WINDOW_WIDTH, WINDOW_HEIGHT);
         shader.set_float("iTime", glfwGetTime());
+        shader.set_double2d("offset", xOffset, yOffset);
+        std::cout << scale << std::endl;
+        shader.set_double("scale", scale);
 
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
         glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -100,4 +123,31 @@ int main() {
     }
 
     return 0;
+}
+
+void process_input() {
+    if(glfwGetKey(window, GLFW_KEY_A))
+    {
+        xOffset -= panSpeed * scale * deltatime;
+    }
+    if(glfwGetKey(window, GLFW_KEY_D))
+    {
+        xOffset += panSpeed * scale * deltatime;
+    }
+    if(glfwGetKey(window, GLFW_KEY_W))
+    {
+        yOffset += panSpeed * scale * deltatime;
+    }
+    if(glfwGetKey(window, GLFW_KEY_S))
+    {
+        yOffset -= panSpeed * scale * deltatime;
+    }
+    if(glfwGetKey(window, GLFW_KEY_MINUS))
+    {
+        scale *= (1 + scaleSpeed * deltatime);
+    }
+    if(glfwGetKey(window, GLFW_KEY_EQUAL))
+    {
+        scale *= (1-scaleSpeed * deltatime);
+    }
 }
