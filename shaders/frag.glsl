@@ -6,6 +6,16 @@ uniform float iTime;
 out vec4 out_color;
 in vec4 gl_FragCoord;
 
+float smooth_max(float a, float b, float k)
+{
+    return log(exp(k*a) + exp(k*b)) / k;
+}
+
+float smooth_min(float a, float b, float k)
+{
+    return -smooth_max(-a,-b,k);
+}
+
 float distance_from_sphere(in vec3 p, in vec3 c, float r)
 {
     return length(p - c) - r;
@@ -13,9 +23,10 @@ float distance_from_sphere(in vec3 p, in vec3 c, float r)
 
 float map_the_world(in vec3 p)
 {
-    float displacement = sin(5.0 * p.x) * sin(5.0 * p.y) * sin(5.0 * p.z) * 0.25 * (sin(iTime) + 1)/2;
-    float sphere_0 = distance_from_sphere(p, vec3(0.0), 1.0);
-    return sphere_0 + displacement;
+    float sphere_0 = distance_from_sphere(p, vec3(4*sin(iTime),0,0), 1.0);
+    float sphere_1 = distance_from_sphere(p, vec3(0,2,0), 0.5);
+    float sphere_3 = distance_from_sphere(p, vec3(1.5,2,0), 0.5);
+    return smooth_min(smooth_min(sphere_0, sphere_1, 2), sphere_3, 2);
 }
 
 vec3 calculate_normal(in vec3 p)
@@ -34,7 +45,7 @@ vec3 calculate_normal(in vec3 p)
 vec3 ray_march(in vec3 ro, in vec3 rd)
 {
     float total_distance_traveled = 0.0;
-    const int NUMBER_OF_STEPS = 32;
+    const int NUMBER_OF_STEPS = 64;
     const float MINIMUM_HIT_DISTANCE = 0.001;
     const float MAXIMUM_TRACE_DISTANCE = 1000.0;
 
@@ -52,7 +63,7 @@ vec3 ray_march(in vec3 ro, in vec3 rd)
 
             float diffuse_intensity = max(0.0, dot(normal, direction_to_light));
 
-            return vec3(1.0, 0.0, 0.0) * diffuse_intensity;
+            return vec3(normal * 0.5 + 0.5);
         }
 
         if (total_distance_traveled > MAXIMUM_TRACE_DISTANCE)
@@ -68,7 +79,7 @@ void main()
 {
     vec2 uv = gl_FragCoord.xy / iResolution.xy - 0.5;
 
-    vec3 camera_position = vec3(0.0, 0.0, -5);
+    vec3 camera_position = vec3(0.0, 0.0, -10);
     vec3 ro = camera_position;
     vec3 rd = vec3(uv, 1.0);
 
