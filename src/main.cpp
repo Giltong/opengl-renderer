@@ -8,14 +8,20 @@ static void glfwError(int id, const char* description)
     std::cerr << description << std::endl;
 }
 
+
+
+
+int WINDOW_WIDTH = 800;
+int WINDOW_HEIGHT = 800;
+
 static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
+    WINDOW_WIDTH = width;
+    WINDOW_HEIGHT = height;
+
     glViewport(0, 0, width, height);
+
 }
-
-
-const int WINDOW_WIDTH = 800;
-const int WINDOW_HEIGHT = 800;
 
 int main() {
 
@@ -24,6 +30,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 4);
 
     GLFWwindow* window = glfwCreateWindow(WINDOW_WIDTH,WINDOW_HEIGHT,"Ray Tracer", nullptr, nullptr);
 
@@ -43,7 +50,7 @@ int main() {
     }
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     glViewport(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
-
+    glEnable(GL_MULTISAMPLE);
     shader_program shader;
     shader.add("../shaders/vert.glsl", shader_type::vertex);
     shader.add("../shaders/frag.glsl", shader_type::fragment);
